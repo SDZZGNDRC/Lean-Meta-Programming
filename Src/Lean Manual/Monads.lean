@@ -96,3 +96,4 @@ def main : IO Unit := do
   printBoard g.board
 
 #eval main
+#check Lean.JsonNumber

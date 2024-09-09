@@ -334,3 +334,238 @@ namespace hidden_4
 #print Lean.Meta.evalExprCore
 
 end hidden_4
+
+
+namespace hidden_5
+
+inductive Except (α : Type u) where
+  | error : String → Except α
+  | ok : α → Except α
+  deriving Repr
+
+def find_one (xs : List α) : Except α :=
+  match xs with
+  | [] => Except.error "Empty list"
+  | x :: _ => Except.ok x
+
+def length (xs : List α) : Nat :=
+  match xs with
+  | [] => 0
+  | _ :: xs => length xs + 1
+
+#check Lean.Json
+/-
+length [1, 2, 3]
+====>
+match [1, 2, 3] with
+| [] => 0
+| _ :: xs => length xs + 1
+====>
+length [2, 3] + 1
+====>
+(
+match [2, 3] with
+| [] => 0
+| _ :: xs => length xs + 1
+) + 1
+====>
+(lenght [3] + 1) + 1
+====>
+((
+match [3] with
+| [] => 0
+| _ :: xs => length xs + 1
+) + 1) + 1
+====>
+((length [] + 1) + 1) + 1
+====>
+0 + 1 + 1 + 1
+====>
+3
+-/
+
+#reduce find_one [1, 2, 3]
+#reduce find_one [1, 2, (3 : Int)]
+#reduce find_one []
+
+
+
+
+
+end hidden_5
+
+
+namespace hidden_6
+
+inductive BinTree (α : Type) where
+  | leaf : α → BinTree α
+  | node : BinTree α → α → BinTree α → BinTree α
+
+def BinTree.toList : (List α → α → List α → List α) → BinTree α → List α
+  | _, leaf a => [a]
+  | f, node l a r => f (BinTree.toList f l) a (BinTree.toList f r)
+
+open BinTree in
+/-
+        4
+      /   \
+    2      6
+  /  \    / \
+1     3  5   7
+-/
+def test_binTree := node (node (leaf 1) 2 (leaf 3)) 4 (node (leaf 5) 6 (leaf 7))
+
+def BinTree.map (t : BinTree α) (f : α → β) : BinTree β :=
+  match t with
+  | leaf a => leaf (f a)
+  | node l a r => node (BinTree.map l f) (f a) (BinTree.map r f)
+
+#check BinTree.map test_binTree Option.some
+
+#eval BinTree.toList (fun l a r => l ++ [a] ++ r) <| BinTree.map test_binTree Option.some
+#eval BinTree.toList (fun l a r => [a] ++ l ++ r) test_binTree
+#eval BinTree.toList (fun l a r => l ++ r ++ [a]) test_binTree
+
+
+#eval [3,2,4].findIdx? (.=5)
+
+def twoSum (nums : List Nat) (target : Nat) : Option (Nat × Nat) :=
+  match nums with
+  | [] => none
+  | a :: nums =>
+    match nums.findIdx? (.=target - a) with
+    | none => twoSum nums target
+    | some i => some (a, nums.get! i)
+
+#eval twoSum [2,7,11,15] 9
+#eval twoSum [2,7,11,15] 100
+
+def threeSum (nums : List Nat) (target : Nat) : Option (Nat × Nat × Nat) :=
+  match nums with
+  | [] => none
+  | a :: nums =>
+    match twoSum nums (target - a) with
+    | none => threeSum nums target
+    | some (b, c) => some (a, b, c)
+
+#eval threeSum [2,7,11,15] 28
+
+def FinVec.appendleft (f : Fin n → α) (first : α) : Fin (n+1) → α := fun i =>
+  if h : i = 0 then first else f <| i.pred h
+
+def FinVec.append (f : Fin n → α) (next : α) : Fin (n+1) → α := fun i =>
+  if h : i.val = n then next else f (Fin.castLT i (Nat.lt_iff_le_and_ne.2 ⟨Nat.le_of_lt_add_one i.2, h⟩))
+
+
+def kSum (nums : List Nat) (k : Nat) (target : Nat) : Option (List Nat) :=
+  match nums, k with
+  | _, 0 => none
+  | [], _ => none
+  | nums, 1 =>
+    match nums.find? (. = target) with
+    | none => none
+    | some i => some [i]
+  | a :: nums, k+1 =>
+    match kSum nums k (target - a) with
+    | none => kSum nums (k+1) target
+    | some l => [a] ++ l
+
+#eval kSum [1,2,3,4,5] 2 9
+#eval kSum [1,2,3,4,5] 3 12
+#eval kSum [1,2,3,4,5] 1 6
+#eval kSum [1,2,3,4,5] 0 0
+
+
+/-
+TODO:
+Hash version for Two sum problem
+-/
+
+/-
+Add two sum in link list
+-/
+
+def listToNat (nums : List Nat) : Option Nat :=
+  match nums with
+  | [] => none
+  | xs => some (xs.foldl (fun acc n => acc * 10 + n) 0)
+
+#eval listToNat [1,2,3,4,5]
+#eval listToNat [0,1,2,0,3]
+#eval listToNat []
+
+
+def listToNat' (nums : List Nat) : Option Nat :=
+  match nums with
+  | [] => none
+  | xs => some (xs.foldr (fun acc n => n * 10 + acc) 0)
+
+#eval listToNat' [1,2,3,4,5]
+#eval listToNat' [0,1,2,0,3]
+
+#check List.find?
+#eval List.foldl (fun xs n =>
+  match (xs.findIdx? (. = n)) with
+  | some _ => xs
+  | none => xs ++ [n]) [] [1,2,2,3,3,4]
+
+def isPalindrome [DecidableEq α] : List α → Bool := fun l => match l with
+  | [] => true
+  | _ => List.foldl (fun a b => a && b.1 = b.2) true (List.zip l (l.reverse))
+
+#eval isPalindrome [1,2,3,4,5]
+#eval isPalindrome ([] : List Nat)
+#eval isPalindrome [1,2,1]
+
+#check Lean.Parsec
+#check Lean.Parsec.ws
+#check Lean.Parsec.eof
+#check Lean.Json.parse
+
+
+
+/-
+Regular Expression Matching
+-/
+
+partial def parse (p : String.Iterator) (s : String.Iterator) : Bool :=
+  match p.curr, s.curr with
+  | '.', b => if p.hasNext && s.hasNext then parse (p.setCurr b).next s.next else true
+  | '*', b => if p.prev.curr = b then
+                if s.hasNext then parse p s.next else true
+              else
+                if p.hasNext then parse (p.setCurr p.prev.curr).next s else false
+  | a, b => if a = b then
+              if p.hasNext && s.hasNext then parse (p.next) (s.next) else true
+            else
+              false
+
+
+#eval parse ⟨"a.c",0⟩ ⟨"apc",0⟩
+#eval parse ⟨"a.c**b",0⟩ ⟨"apc",0⟩
+#eval parse ⟨"abc", 0⟩ ⟨"abc", 0⟩  -- 应该返回 true
+#eval parse ⟨"a.c", 0⟩ ⟨"abc", 0⟩  -- 应该返回 true
+#eval parse ⟨"a.c", 0⟩ ⟨"axc", 0⟩  -- 应该返回 true
+#eval parse ⟨"a*b", 0⟩ ⟨"ab", 0⟩    -- 应该返回 true
+#eval parse ⟨"a*b*", 0⟩ ⟨"aabb", 0⟩  -- 应该返回 true
+#eval parse ⟨"a*b", 0⟩ ⟨"abx", 0⟩   -- 应该返回 false
+#eval parse ⟨"a**", 0⟩ ⟨"a", 0⟩      -- 应该返回 true
+#eval parse ⟨"a*.c", 0⟩ ⟨"abc", 0⟩    -- 应该返回 true
+#eval parse ⟨"a**b", 0⟩ ⟨"ab", 0⟩    -- 应该返回 true
+#eval parse ⟨"a.*b.", 0⟩ ⟨"axby", 0⟩  -- 应该返回 true
+#eval parse ⟨"", 0⟩ ⟨"", 0⟩          -- 应该返回 true
+#eval parse ⟨"a", 0⟩ ⟨"", 0⟩          -- 应该返回 false
+#eval parse ⟨"", 0⟩ ⟨"a", 0⟩          -- 应该返回 false
+#eval parse ⟨"a.c*b", 0⟩ ⟨"abc", 0⟩    -- 应该返回 false
+#eval parse ⟨"a.c*b", 0⟩ ⟨"abcb", 0⟩   -- 应该返回 true
+#eval parse ⟨"a.c*b", 0⟩ ⟨"acb", 0⟩    -- 应该返回 false
+#eval parse ⟨"a.*.*.c", 0⟩ ⟨"a11112223c", 0⟩  -- 应该返回 true
+#eval parse ⟨"a.*.c", 0⟩ ⟨"abc", 0⟩    -- 应该返回 false
+
+
+/-
+
+-/
+
+
+end hidden_6

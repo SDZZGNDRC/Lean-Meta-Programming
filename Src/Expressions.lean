@@ -14,6 +14,7 @@ def sumExpr : Nat → Nat → Expr
 #eval sumExpr 1 2
 elab "one" : term => return sumExpr 1 2
 #check one
+#check sumExpr 1 2
 #reduce one
 
 -- exercise 2
@@ -84,7 +85,6 @@ elab "eight" : term => return eight
 def nine := Expr.lam `p (Expr.sort Lean.Level.zero) (Expr.lam `hP (.bvar 1) (.bvar 0) .default) .default
 elab "nine" : term => return nine
 #check nine
-#reduce nine
 
 -- exercise 10
 def ten := Expr.sort (Nat.toLevel 7)
