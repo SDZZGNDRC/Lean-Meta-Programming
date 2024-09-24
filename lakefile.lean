@@ -6,7 +6,7 @@ package «src» where
 
 require batteries from git "https://github.com/leanprover-community/batteries" @ "main"
 
--- lean_lib «Src» where
+lean_lib «Src» where
 --   -- add library configuration options here
 
 @[default_target]
